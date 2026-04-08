@@ -14,21 +14,21 @@ uint64_t virt_to_phys(void *addr) { //from pointer to physical address
     int fd = open("/proc/self/pagemap", O_RDONLY); //open read only 
     if (fd < 0) { perror("open"); return 0; } //return 0 for failure
 
-    lseek(fd, vpn * 8, SEEK_SET); //make sure each entry is 8
+    lseek(fd, vpn * 8, SEEK_SET); //seek 8 bytes
 
     uint64_t entry;
-    read(fd, &entry, 8); //read entry
+    read(fd, &entry, 8); //page entry= 8 read one 8bit entry the one found prior
     close(fd); //close
 
     if (!(entry & (1ULL << 63))) return 0;//in ram? if not no physical address
 
-    uint64_t pfn = entry & ((1ULL << 55) - 1); //take the page frame number (PFN) p
-    return (pfn * page_size) + offset;//find the pyhyiscal address
+    uint64_t pfn = entry & ((1ULL << 55) - 1); //take the page frame number (PFN) 0-55
+    return (pfn * page_size) + offset;//find the phyiscal address
 }
 
 void print_info(const char *role, int *shared_mem) { //prints info shared memory pointer
-    uint64_t vaddr = (uint64_t)shared_mem;//pointer to integer
-    uint64_t paddr = virt_to_phys(shared_mem); //integer to physical 
+    uint64_t vaddr = (uint64_t)shared_mem;//convert pointer to integer for virtual
+    uint64_t paddr = virt_to_phys(shared_mem); //convert virtual address to physical address
 
     printf("[%s | PID %d]\n", role, getpid()); //feedback
     printf("  Value            : %d\n",           *shared_mem); //print value
@@ -48,11 +48,11 @@ int main(void) {
 
     *shared_mem = 1234;// write value and fault to ensure physical value
 
-    pid_t child = fork(); //create child process so it runs from super
-    if (child < 0) { perror("fork"); return 1; } //PID to parent 0 to child
+    pid_t child = fork(); //create child process so it runs doesnt stop parent from running parent will wait
+    if (child < 0) { perror("fork"); return 1; } //PID to parent 0 to child except -1 if error
 
     if (child == 0) { //fork to child
-        *shared_mem = 5678; //write value to new memory 
+        *shared_mem = 5678; //write value to shared memory
         print_info("CHILD", shared_mem); //prints it out (should come first because wait)
         _exit(0);//exit
     } else {
