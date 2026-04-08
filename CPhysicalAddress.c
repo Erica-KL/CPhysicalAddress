@@ -12,10 +12,10 @@ uint64_t virt_to_phys(void *addr) {
     int fd = open("/proc/self/pagemap", O_RDONLY);   //read only entry
     if (fd < 0) { perror("open"); exit(1); }  // if this fails halt
 
-    lseek(fd, vpn * 8, SEEK_SET);   //multiply by 8 to access right entry 
+    lseek(fd, vpn * 8, SEEK_SET);   //get in position
 
     uint64_t entry; 
-    read(fd, &entry, 8);   //open and read entry
+    read(fd, &entry, 8);   //read entry
     close(fd); // close
 
     if (!(entry & (1ULL << 63))) {     // check bit if page is in ram
@@ -23,14 +23,15 @@ uint64_t virt_to_phys(void *addr) {
         return 0;
     }
 
-    uint64_t pfn = entry & ((1ULL << 55) - 1);  //take the Page Frame number bits and zero out the rest (55>)
+    uint64_t pfn = entry & ((1ULL << 55) - 1);  //extract page frame number which is 0-54bits 
     return (pfn * page_size) + offset;     // Page Frame number aka (PFN) * 4096 + offset = physical address
 }
 
 void my_function() {
     int local_var = 42;   // non-pointer, lives on the STACK
     int *heap_ptr = malloc(sizeof(int));   // pointer is in stack and the object is in HEAP
-    *heap_ptr = 99;  //store 99 as long as malloc not null
+    if (!heap_ptr) { perror("malloc"); return; } //check if malloc failed 
+    *heap_ptr = 99;  //store 99 
 
     printf("local_var | virtual: %p | physical: 0x%lx\n", //print for local variable 
            &local_var, virt_to_phys(&local_var));
