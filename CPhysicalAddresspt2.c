@@ -1,4 +1,4 @@
-#include <stdio.h> //fflush
+#include <stdio.h> //fflush printf
 #include <stdlib.h> //exit
 #include <stdint.h> //unit64_t
 #include <fcntl.h> //O_RDONLY
@@ -14,15 +14,15 @@ uint64_t virt_to_phys(void *addr) { //from pointer to physical address
     int fd = open("/proc/self/pagemap", O_RDONLY); //open read only 
     if (fd < 0) { perror("open"); return 0; } //return 0 for failure
 
-    lseek(fd, vpn * 8, SEEK_SET); //seek 8 bytes
+    lseek(fd, vpn * 8, SEEK_SET); //get in position 
 
     uint64_t entry;
-    read(fd, &entry, 8); //page entry= 8 read one 8bit entry the one found prior
+    read(fd, &entry, 8); //page entry= 8byte read one 8byte entry the one found prior
     close(fd); //close
 
     if (!(entry & (1ULL << 63))) return 0;//in ram? if not no physical address
 
-    uint64_t pfn = entry & ((1ULL << 55) - 1); //take the page frame number (PFN) 0-55
+    uint64_t pfn = entry & ((1ULL << 55) - 1); //take the page frame number (PFN) 0-54
     return (pfn * page_size) + offset;//find the phyiscal address
 }
 
@@ -42,14 +42,14 @@ int main(void) {
 
     int *shared_mem = mmap(NULL, page_size,  // allocate page of shared memory
                            PROT_READ | PROT_WRITE, //read and write
-                           MAP_SHARED | MAP_ANONYMOUS, //backed by RAM
+                           MAP_SHARED | MAP_ANONYMOUS, //shared is visible anonymous doesnt have file backed by RAM
                            -1, 0); //place holder for anonymous
     if (shared_mem == MAP_FAILED) { perror("mmap"); return 1; } //returns map_failed on failure
 
     *shared_mem = 1234;// write value and fault to ensure physical value
 
     pid_t child = fork(); //create child process so it runs doesnt stop parent from running parent will wait
-    if (child < 0) { perror("fork"); return 1; } //PID to parent 0 to child except -1 if error
+    if (child < 0) { perror("fork"); return 1; } //fork didnt work
 
     if (child == 0) { //fork to child
         *shared_mem = 5678; //write value to shared memory
